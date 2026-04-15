@@ -1,0 +1,127 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "cockroachdb"
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum ExamState {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  role      Role     @default(STUDENT)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  userAnswers UserAnswer[]
+  userExams   UserExam[]
+  audits      Audit[]
+  userTokens  UserToken[]
+}
+
+model Exam {
+  id          String    @id @default(uuid())
+  state       ExamState @default(DRAFT)
+  timeLimitMs Int       @map("time_limit_ms")
+  startTime   DateTime  @map("start_time") @db.Timestamptz
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  questions Question[]
+  userExams UserExam[]
+}
+
+model Question {
+  id        String   @id @default(uuid())
+  statement String
+  examId    String   @map("exam_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  exam        Exam         @relation(fields: [examId], references: [id])
+  answers     Answer[]
+  userAnswers UserAnswer[]
+}
+
+model Answer {
+  id            String   @id @default(uuid())
+  isRightAnswer Boolean  @default(false) @map("is_right_answer")
+  questionId    String   @map("question_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  question    Question     @relation(fields: [questionId], references: [id])
+  userAnswers UserAnswer[]
+}
+
+model UserAnswer {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  questionId String   @map("question_id")
+  answerId   String   @map("answer_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user     User     @relation(fields: [userId], references: [id])
+  question Question @relation(fields: [questionId], references: [id])
+  answer   Answer   @relation(fields: [answerId], references: [id])
+
+  @@map("User_Answer")
+}
+
+model UserExam {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  examId    String   @map("exam_id")
+  token     String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+  exam Exam @relation(fields: [examId], references: [id])
+
+  @@map("User_Exam")
+}
+
+model Audit {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  object    String
+  objectId  String   @map("object_id")
+  payload   Json
+  metadata  Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model UserToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("User_Token")
+}
